@@ -70,7 +70,7 @@ forearm muscle ─► ECG electrode pads ─► EMG sensor board ─► Arduino 
 ## The build
 
 1. **Power first.** I built a dual supply from two 9 V batteries in series (how and why are under [Challenges](#challenges-and-what-i-learned)) and checked it with a multimeter before connecting anything else.
-2. **Sensor to Arduino.** The sensor's output goes to A0, and the battery midpoint goes to both the sensor's GND and the Arduino's GND. The Arduino measures voltages relative to its own ground, so both boards need to share the same 0 V point.
+2. **Sensor to Arduino.** The sensor's SIG output goes to A0, and the sensor's GND goes to the Arduino's GND. The Arduino measures voltages relative to its own ground, so it needs to share the same 0 V point as the sensor and the batteries' midpoint.
 3. **Electrodes.** Two pads go on my forearm just below the elbow, over the muscles that close the hand (see the photo above). The reference pad goes on the back of my wrist, a bony spot with little muscle activity.
 4. **Arduino code** ([`arduino/emg_sender/emg_sender.ino`](arduino/emg_sender/emg_sender.ino)). The sketch is deliberately tiny: read A0, print the number, wait 10 ms, repeat. About 100 readings a second is enough for smooth motion and uses roughly 6,000 of the 9,600 bits per second the serial link can carry. Keeping the Arduino side simple means all the signal processing can be tuned in the app without re-uploading code.
 5. **Check the raw signal.** The Arduino IDE's Serial Plotter graphs the numbers live. It's the quickest way to see whether the sensor is working before the app gets involved.
@@ -102,9 +102,7 @@ After wiring everything up, the Serial Plotter showed a flat line near 0 that di
 
 ### Working out why
 
-The amplifiers on this type of sensor board need a **dual supply**: a positive rail, a negative rail, and a 0 V ground in between. The raw muscle signal swings both above and below 0 V, and the amplifiers need room on both sides to follow it. Without the negative rail, the board can't produce a usable output.
-
-I described the symptom to an AI assistant, which pointed out that this type of board needs a dual supply. The board's own pin labels, **+Vs** and **−Vs**, confirm it: it expects both a positive and a negative rail.
+I described the symptom to an AI assistant, which pointed out that this type of sensor board needs a **dual supply**: a positive rail, a negative rail, and a 0 V ground in between. The raw muscle signal swings both above and below 0 V, and the board's amplifiers need room on both sides to follow it. Without a negative rail, the board can't produce a usable output. The board's own pin labels, **+Vs** and **−Vs**, confirm that it expects both.
 
 ### The fix: a dual supply from two 9 V batteries
 
@@ -128,6 +126,7 @@ Battery B (−) ─────────────────►  −9 V  
 - **Check the power before blaming the circuit.** The sensor could be wired correctly and still output nothing if it isn't powered the way it needs.
 - **Measure, don't assume.** A multimeter takes seconds and turns "I think it's wired right" into numbers.
 - **Test one stage at a time.** Checking the supply voltages, then the raw signal, then the app made it clear which stage a problem was in.
+
 ## A note on the electrodes
 
 I used **ECG electrodes**, the stick-on pads used for heart monitoring, rather than dedicated EMG electrodes. They're the same basic kind of sensor (a disposable pad with conductive gel), they pick up muscle signals through the skin well enough for this project, and they're cheap and easy to buy.
