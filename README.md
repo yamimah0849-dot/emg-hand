@@ -41,7 +41,7 @@ forearm muscle ─► ECG electrode pads ─► EMG sensor board ─► Arduino 
 | Part | Role in the project |
 |---|---|
 | Arduino Uno | Reads the sensor board's output on analog pin A0 and sends the values to the computer over USB. |
-| Red EMG muscle sensor board (unbranded; it appears to be a clone of the Advancer Technologies Muscle Sensor V3 design) | Amplifies and filters the muscle signal and outputs a smooth voltage that rises with effort. Needs a ±9 V dual supply. |
+| Red EMG muscle sensor board (unbranded; its pin layout and ±9 V supply match the Advancer Technologies Muscle Sensor V3 design, so it is most likely a clone) | Amplifies and filters the muscle signal and outputs a smooth voltage that rises with effort. Needs a ±9 V dual supply. |
 | ECG electrode pads (3: two on the muscle, one reference) | Disposable stick-on gel pads that pick up the signal through the skin ([why ECG pads?](#a-note-on-the-electrodes)) |
 | 2 × 9 V batteries in series | Dual ±9 V power supply for the sensor board ([why?](#challenges-and-what-i-learned)) |
 | Multimeter | Checking the supply voltages |
@@ -52,13 +52,16 @@ forearm muscle ─► ECG electrode pads ─► EMG sensor board ─► Arduino 
 
 | From | To |
 |---|---|
-| Battery A **+** | Sensor board **+V** (+9 V) |
-| Battery A **−** joined to Battery B **+** (the midpoint) | Sensor board **GND** *and* Arduino **GND** |
-| Battery B **−** | Sensor board **−V** (−9 V) |
-| Sensor board **signal output** | Arduino **A0** |
-| Electrode leads | Sensor board electrode inputs (two muscle electrodes + one reference) |
+| Battery A **+** | Sensor **+Vs** (+9 V) |
+| Battery A **−** joined to Battery B **+** (the midpoint, 0 V) | Sensor **GND** (beside +Vs and −Vs) |
+| Battery B **−** | Sensor **−Vs** (−9 V) |
+| Sensor **SIG** | Arduino **A0** |
+| Sensor **GND** (beside SIG) | Arduino **GND** |
+| Electrode cable | Sensor's 3.5 mm socket (two muscle electrodes + one reference) |
 
-> ✏️ **CHECK:** make sure this table matches how you actually wired it, and use the pin names printed on your board.
+**Vs** stands for supply voltage, which is ±9 V here, not 5 V. Both GND pins are the board's 0 V reference, so the batteries' midpoint and the Arduino share a common ground.
+
+> ✏️ **CHECK:** make sure these connections match how you actually wired it.
 
 > **Safety:** everything connected to the body runs from batteries. While the electrodes are on, the laptop should run on its own battery with the charger unplugged, so there's no route from mains power through the USB cable to the body.
 
@@ -106,11 +109,11 @@ The amplifiers on this type of sensor board need a **dual supply**: a positive r
 Connecting two 9 V batteries in series (the **−** of one to the **+** of the other) gives 18 V across the pair. If the joint in the middle is treated as ground (0 V), that splits into **+9 V** and **−9 V**:
 
 ```
-Battery A (+) ─────────────────►  +9 V  → sensor +V
+Battery A (+) ─────────────────►  +9 V  → sensor +Vs
 Battery A (−) ──┐
                 ├──────────────►   0 V  → sensor GND and Arduino GND
 Battery B (+) ──┘
-Battery B (−) ─────────────────►  −9 V  → sensor −V
+Battery B (−) ─────────────────►  −9 V  → sensor −Vs
 ```
 
 ### Verifying it, in two steps
