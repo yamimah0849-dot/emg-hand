@@ -4,6 +4,15 @@
 
 > **Status: working proof of concept.** It uses one EMG channel, so it tracks one movement (open hand ↔ closed fist) and how strongly I'm making it. It can't yet tell individual fingers or different gestures apart. See [Future improvements](#future-improvements).
 
+**Try it:** [live demo in your browser](https://yamimah0849-dot.github.io/emg-hand/) (Chrome or Edge; no sensor needed, just tick **Demo mode** and hold **Space**) · [demo video](https://youtube.com/shorts/HJ0MSKtzvS0)
+
+## My role
+
+- **Built the hardware:** wired the EMG sensor board, electrodes and Arduino Uno, plus a ±9 V dual supply made from two 9 V batteries.
+- **Debugged it:** the board first gave no signal at all. The cause turned out to be the power supply, so I built the dual supply and checked the fix with a multimeter and the Serial Plotter ([details](#challenges-and-what-i-learned)).
+- **Wrote the Arduino code** that streams the sensor readings to the computer.
+- **Directed, tested and tuned the browser app**, which was built with the help of Claude, an AI coding assistant ([details](#the-build)).
+
 ## Demo
 
 [![EMG Hand demo video on YouTube](https://img.youtube.com/vi/HJ0MSKtzvS0/hqdefault.jpg)](https://youtube.com/shorts/HJ0MSKtzvS0)
@@ -67,7 +76,7 @@ forearm muscle ─► ECG electrode pads ─► EMG sensor board ─► Arduino 
 
 ## The build
 
-1. **Power first.** I built a dual supply from two 9 V batteries in series (how and why are under [Challenges](#challenges-and-what-i-learned)) and checked it with a multimeter before connecting anything else.
+1. **Power first.** I built a dual supply from two 9 V batteries in series (how and why are under [Challenges](#challenges-and-what-i-learned)) and checked both rails with a multimeter.
 2. **Sensor to Arduino.** The sensor's SIG output goes to A0, and the sensor's GND goes to the Arduino's GND. The Arduino measures voltages relative to its own ground, so it needs to share the same 0 V point as the sensor and the batteries' midpoint.
 3. **Electrodes.** Two pads go on my forearm just below the elbow, over the muscles that close the hand (see the photo above). The reference pad goes on the back of my wrist, a bony spot with little muscle activity.
 4. **Arduino code** ([`arduino/emg_sender/emg_sender.ino`](arduino/emg_sender/emg_sender.ino)). The sketch is deliberately tiny: read A0, print the number, wait 10 ms, repeat. About 100 readings a second is enough for smooth motion and uses roughly 6,000 of the 9,600 bits per second the serial link can carry. Keeping the Arduino side simple means all the signal processing can be tuned in the app without re-uploading code.
@@ -84,11 +93,9 @@ forearm muscle ─► ECG electrode pads ─► EMG sensor board ─► Arduino 
 
 ### Run it yourself
 
-You can try it **without any hardware**:
+You can try it **without any hardware**: open the **[live demo](https://yamimah0849-dot.github.io/emg-hand/)** in Chrome or Edge, tick **Demo mode**, and hold **Space** to simulate a clench.
 
-1. Download this repository (green **Code** button → **Download ZIP**) and unzip it.
-2. On Windows, double-click **`Start EMG Hand.bat`**. It starts a small local web server and opens the app in Edge or Chrome. An internet connection is needed to load the 3D libraries.
-3. Tick **Demo mode** and hold **Space** to simulate a clench.
+To run it from your own copy on Windows, download this repository (green **Code** button → **Download ZIP**), unzip it, and double-click **`Start EMG Hand.bat`**. It starts a small local web server and opens the app in Edge or Chrome. Either way, an internet connection is needed to load the 3D libraries.
 
 With the hardware: upload the sketch, close the Arduino IDE's Serial Monitor/Plotter (only one program can use the port at a time), click **Connect** in the app, and follow the on-screen calibration. Settings and troubleshooting are in the [software guide](docs/software-guide.md).
 
@@ -116,8 +123,8 @@ Battery B (−) ─────────────────►  −9 V  
 
 ### Verifying it, in two steps
 
-1. **Multimeter, before connecting the board.** With the black probe on the midpoint (ground), I measured each rail with the red probe: **+9.53 V** and **−9.34 V**. A minus sign on the negative rail confirms the batteries are connected the right way round.
-2. **Serial Plotter, with everything connected.** The live trace now stayed low and steady at rest, around **30–45**, and jumped to around **1000** each time I clenched my fist. That clear gap between rest and clench is exactly what the app's calibration relies on.
+1. **Multimeter.** With the black probe on the midpoint (ground), I measured each rail with the red probe: **+9.53 V** and **−9.34 V**. A minus sign on the negative rail confirms the batteries are connected the right way round.
+2. **Serial Plotter, with everything connected.** The live trace now stayed low and steady at rest, around **30–45**, and jumped to around **1000** each time I clenched my fist, at times hitting the Arduino's maximum reading of 1023. That clear gap between rest and clench is exactly what the app's calibration relies on.
 
 ### What I learned
 
@@ -137,7 +144,7 @@ The trade-offs:
 
 ## Future improvements
 
-- **Turn down the sensor's gain.** A full clench reads about 1000 out of the Arduino's maximum of 1023, so strong clenches sit right at the top of what the input can measure, and anything stronger gets cut off. This board's output can also rise above the 5 V the Arduino's input is rated for, because it runs from ±9 V. Turning down the board's gain trimmer until a full clench reads around 700–800 would keep the signal in range and protect the Arduino.
+- **Turn down the sensor's gain.** A full clench reads around 1000 and can hit the Arduino's maximum of 1023, so strong clenches sit right at the top of what the input can measure, and anything stronger gets cut off. This board's output can also rise above the 5 V the Arduino's input is rated for, because it runs from ±9 V. Turning down the board's gain trimmer until a full clench reads around 700–800 would keep the signal in range and protect the Arduino.
 - **More channels, more gestures.** Add 2–4 sensors over different forearm muscles (for example the ones that open the hand as well as the ones that close it) and train a simple classifier, so it can tell a fist, a pinch and a point apart.
 - **Go wireless.** Stream the readings over Bluetooth or Wi-Fi (for example from a board like the ESP32, which has both built in) instead of a USB cable.
 - **A better power supply.** 9 V batteries run down fairly quickly, and their voltage drops as they drain. A rechargeable, regulated ±V supply would be steadier and cheaper over time.
@@ -151,3 +158,7 @@ The trade-offs:
 - Browser app (`index.html`, `style.css`, `js/`, and the helper scripts): built with Claude, an AI coding assistant made by Anthropic.
 - 3D hand model: the WebXR "generic hand" from the open-source [webxr-input-profiles](https://github.com/immersive-web/webxr-input-profiles) project (MIT license).
 - 3D rendering: [three.js](https://threejs.org/) (MIT license).
+
+## License
+
+[MIT](LICENSE). The 3D hand model and three.js are separate open-source projects under their own MIT licenses.
