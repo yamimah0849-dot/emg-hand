@@ -1,0 +1,13 @@
+# Single-file copy of the app with the hand models embedded (duplicate of index.html)
+publish.html
+assets/models.js
+
+# Third-party files fetched by download-assets.ps1 for offline use.
+# The app loads them from the CDN when these folders are missing.
+assets/
+vendor/
+
+# Windows / macOS clutter
+Thumbs.db
+desktop.ini
+.DS_Store

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EMG Hand</title>
+<link rel="stylesheet" href="style.css">
+<script>
+  // Use the offline copy of three.js if download-assets.ps1 has been run, otherwise the CDN.
+  (function () {
+    var local = false;
+    try {
+      var x = new XMLHttpRequest();
+      x.open('HEAD', 'vendor/three/build/three.module.js', false); x.send();
+      local = x.status === 200;
+    } catch (e) {}
+    var base = local ? 'vendor/three/' : 'https://cdn.jsdelivr.net/npm/three@0.160.0/';
+    var map = document.createElement('script');
+    map.type = 'importmap';
+    map.textContent = JSON.stringify({ imports: {
+      'three': base + 'build/three.module.js',
+      'three/addons/': base + 'examples/jsm/'
+    }});
+    document.currentScript.after(map);
+  })();
+</script>
+</head>
+<body>
+<main id="viewport">
+  <div id="loading" class="overlay-msg">Loading hand model…</div>
+
+  <div id="grip-hud">
+    <div class="hud-label">Grip</div>
+    <div class="hud-value"><span id="hud-pct">0</span><small>%</small></div>
+  </div>
+
+  <div id="calib" hidden>
+    <div class="calib-card">
+      <div class="calib-step" id="calib-step">Step 1 of 2</div>
+      <h2 id="calib-title">Relax your arm</h2>
+      <p id="calib-text">Let your hand hang loose. Recording resting level…</p>
+      <div class="calib-ring">
+        <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="track"/><circle cx="60" cy="60" r="52" class="bar" id="calib-bar"/></svg>
+        <span id="calib-count">3</span>
+      </div>
+      <div class="calib-actions">
+        <button id="calib-cancel" class="ghost">Cancel</button>
+        <button id="calib-skip" class="ghost" hidden>Use last calibration</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="hint">Drag to orbit · scroll to zoom · double-click to reset view</div>
+</main>
+
+<aside id="panel">
+  <header>
+    <div class="brand"><span class="logo"></span>EMG Hand</div>
+    <div id="status" class="status idle"><span class="dot"></span><span id="status-text">Not connected</span></div>
+  </header>
+
+  <section>
+    <h3>Connection</h3>
+    <label class="field">Serial port
+      <select id="port-select"></select>
+    </label>
+    <div class="row">
+      <label class="field grow">Baud rate
+        <select id="baud">
+          <option>9600</option><option>19200</option><option>38400</option><option>57600</option><option>115200</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <button id="connect" class="primary grow">Connect</button>
+      <button id="disconnect" class="ghost" disabled>Disconnect</button>
+    </div>
+    <p id="message" class="message"></p>
+    <label class="toggle"><input type="checkbox" id="demo"> <span>Demo mode (no hardware) — hold <kbd>Space</kbd> to clench</span></label>
+  </section>
+
+  <section>
+    <h3>Signal</h3>
+    <canvas id="chart"></canvas>
+    <div class="legend">
+      <span><i class="sw raw"></i>raw</span><span><i class="sw smooth"></i>smoothed</span><span><i class="sw cal"></i>rest / max</span>
+    </div>
+    <div class="stats">
+      <div><small>Raw</small><b id="v-raw">–</b></div>
+      <div><small>Smoothed</small><b id="v-smooth">–</b></div>
+      <div><small>Rate</small><b id="v-rate">–</b></div>
+    </div>
+    <div class="gripbar"><div id="gripbar-fill"></div></div>
+  </section>
+
+  <section>
+    <h3>Calibration</h3>
+    <div class="stats">
+      <div><small>Rest</small><b id="c-rest">–</b></div>
+      <div><small>Max clench</small><b id="c-max">–</b></div>
+      <div><small>Noise</small><b id="c-noise">–</b></div>
+    </div>
+    <button id="calibrate" class="secondary full">Recalibrate <kbd>C</kbd></button>
+  </section>
+
+  <section>
+    <h3>Tuning</h3>
+    <label class="slider">Smoothing <output id="o-smooth"></output>
+      <input type="range" id="smooth" min="20" max="500" step="10" value="120"></label>
+    <label class="slider">Responsiveness <output id="o-resp"></output>
+      <input type="range" id="resp" min="3" max="20" step="0.5" value="9"></label>
+    <label class="slider">Dead-zone <output id="o-dz"></output>
+      <input type="range" id="dz" min="0" max="0.4" step="0.01" value="0.08"></label>
+    <label class="slider">Gain <output id="o-gain"></output>
+      <input type="range" id="gain" min="0.5" max="2" step="0.05" value="1"></label>
+    <label class="field">Signal type
+      <select id="mode">
+        <option value="envelope">Envelope — value rises when clenching</option>
+        <option value="raw">Raw EMG — signal oscillates around a midpoint</option>
+      </select>
+    </label>
+  </section>
+
+  <section>
+    <h3>Appearance</h3>
+    <div class="row">
+      <label class="field grow">Hand
+        <select id="side"><option value="right">Right</option><option value="left">Left</option></select>
+      </label>
+    </div>
+    <div class="swatches" id="swatches"></div>
+  </section>
+</aside>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
