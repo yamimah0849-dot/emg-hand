@@ -53,8 +53,8 @@ export class SerialLink {
       }
       if (e.name === 'SecurityError') {
         this._status('error',
-          'This page is not allowed to use serial ports (the online preview blocks them). ' +
-          'To connect your sensor, run the app on your PC with “Start EMG Hand.bat”. Demo mode works here.');
+          'This page is not allowed to use serial ports. ' +
+          'To connect your sensor, run the app on your PC with “Start EMG Hand.bat”. Demo mode still works.');
         return null;
       }
       this._status('error', `Could not open the port chooser: ${e.message}`);

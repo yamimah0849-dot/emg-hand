@@ -9,7 +9,7 @@ The app shows a realistic 3D hand that follows your EMG muscle sensor: relax and
 Nothing extra on Windows 10/11. You need:
 
 - **Microsoft Edge** (already on Windows) or **Google Chrome**. These browsers can read serial ports. Firefox and Safari can't.
-- Your Arduino sketch, already running, that prints one number per line at 9600 baud. A reference copy is in `arduino/emg_sender/`.
+- The Arduino sketch in `arduino/emg_sender/` uploaded to the Uno. It prints one number per line at 9600 baud.
 - An internet connection the first time you run it, or see *Offline use* below.
 
 ## How to run
@@ -95,5 +95,5 @@ js/serial.js           serial connection
 js/signal.js           filtering, normalisation, calibration
 js/hand.js             3D scene, rigged hand, finger kinematics
 download-assets.ps1    optional offline copy of libraries/models
-arduino/emg_sender/    reference Arduino sketch
+arduino/emg_sender/    Arduino sketch: reads A0 and sends the values over USB
 ```
