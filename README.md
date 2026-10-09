@@ -10,13 +10,11 @@
 
 > ✏️ **PASTE HERE:** replace `PASTE_YOUTUBE_LINK_HERE` in the line above with your unlisted YouTube link (for example `https://youtu.be/abc123XYZ`), then delete this note.
 
-![✏️ PASTE HERE: short description of photo 1](images/photo-1.jpg)
-*✏️ PASTE HERE: caption for photo 1 (for example "Electrodes on my forearm, wired to the sensor board and Arduino")*
+![Breadboard circuit: an Arduino Uno connected by USB to a laptop, a small red EMG sensor board with the electrode cable plugged in, and two 9 V batteries wired to the breadboard](images/circuit.jpg)
+*The circuit. The Arduino Uno (top) reads the small red EMG sensor board on the breadboard, which runs from the two 9 V batteries (front). The grey cable on the left goes to the electrodes.*
 
-![✏️ PASTE HERE: short description of photo 2](images/photo-2.jpg)
-*✏️ PASTE HERE: caption for photo 2*
-
-> ✏️ **ADD YOUR PHOTOS:** save them in the `images` folder as `photo-1.jpg` and `photo-2.jpg` (or change the file names above to match yours). Also replace the text inside the square brackets `[...]`: that is the description screen readers read aloud.
+![My forearm with two ECG electrode pads attached, connected by red and yellow snap leads, with a multimeter on the desk behind](images/electrodes-on-forearm.jpg)
+*ECG electrode pads on my forearm, clipped to the sensor's lead cable. In the background is the multimeter I used to check the supply voltages.*
 
 ## How it works
 
