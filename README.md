@@ -6,9 +6,9 @@
 
 ## Demo
 
-▶️ **[Watch the demo video on YouTube](PASTE_YOUTUBE_LINK_HERE)**
+[![EMG Hand demo video on YouTube](https://img.youtube.com/vi/HJ0MSKtzvS0/hqdefault.jpg)](https://youtube.com/shorts/HJ0MSKtzvS0)
 
-> ✏️ **PASTE HERE:** replace `PASTE_YOUTUBE_LINK_HERE` in the line above with your unlisted YouTube link (for example `https://youtu.be/abc123XYZ`), then delete this note.
+▶️ **[Watch the demo video on YouTube](https://youtube.com/shorts/HJ0MSKtzvS0)**
 
 ![Breadboard circuit: an Arduino Uno connected by USB to a laptop, a small red EMG sensor board with the electrode cable plugged in, and two 9 V batteries wired to the breadboard](images/circuit.jpg)
 *The circuit. The Arduino Uno (top) reads the small red EMG sensor board on the breadboard, which runs from the two 9 V batteries (front). The grey cable on the left goes to the electrodes.*
