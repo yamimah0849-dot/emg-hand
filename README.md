@@ -63,8 +63,6 @@ forearm muscle ─► ECG electrode pads ─► EMG sensor board ─► Arduino 
 
 **Vs** stands for supply voltage, which is ±9 V here, not 5 V. Both GND pins are the board's 0 V reference, so the batteries' midpoint and the Arduino share a common ground.
 
-> ✏️ **CHECK:** make sure these connections match how you actually wired it.
-
 > **Safety:** everything connected to the body runs from batteries. While the electrodes are on, the laptop should run on its own battery with the charger unplugged, so there's no route from mains power through the USB cable to the body.
 
 ## The build
