@@ -41,7 +41,6 @@ forearm muscle ─► ECG electrode pads ─► EMG sensor board ─► Arduino 
 | Part | Role in the project |
 |---|---|
 | Arduino Uno | Reads the sensor board's output on analog pin A0 and sends the values to the computer over USB. |
-| ESP32-S3 | ✏️ PASTE HERE: what the ESP32-S3 does in your build |
 | Red EMG muscle sensor board (✏️ PASTE HERE: model name, if known) | Amplifies and filters the muscle signal and outputs a smooth voltage that rises with effort. |
 | ECG electrode pads (3: two on the muscle, one reference) | Disposable stick-on gel pads that pick up the signal through the skin ([why ECG pads?](#a-note-on-the-electrodes)) |
 | 2 × 9 V batteries in series | Dual ±9 V power supply for the sensor board ([why?](#challenges-and-what-i-learned)) |
@@ -139,7 +138,7 @@ The trade-offs:
 ## Future improvements
 
 - **More channels, more gestures.** Add 2–4 sensors over different forearm muscles (for example the ones that open the hand as well as the ones that close it) and train a simple classifier, so it can tell a fist, a pinch and a point apart.
-- **Go wireless.** Stream the readings over Bluetooth or Wi-Fi (for example from an ESP32-S3) instead of a USB cable.
+- **Go wireless.** Stream the readings over Bluetooth or Wi-Fi (for example from a board like the ESP32, which has both built in) instead of a USB cable.
 - **A better power supply.** 9 V batteries run down fairly quickly, and their voltage drops as they drain. A rechargeable, regulated ±V supply would be steadier and cheaper over time.
 - **Faster sampling.** 100 readings per second is fine for the smoothed signal, but analysing the raw EMG waveform (for example its frequency content, which shifts as a muscle tires) would need about 1,000 or more per second and a faster serial link.
 - **Put numbers on performance.** Measure the delay from muscle activation to on-screen movement, and how repeatable the grip level is between sessions.
