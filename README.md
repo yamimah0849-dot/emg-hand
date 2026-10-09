@@ -41,7 +41,7 @@ forearm muscle ─► ECG electrode pads ─► EMG sensor board ─► Arduino 
 | Part | Role in the project |
 |---|---|
 | Arduino Uno | Reads the sensor board's output on analog pin A0 and sends the values to the computer over USB. |
-| Red EMG muscle sensor board (✏️ PASTE HERE: model name, if known) | Amplifies and filters the muscle signal and outputs a smooth voltage that rises with effort. |
+| Red EMG muscle sensor board (unbranded; it appears to be a clone of the Advancer Technologies Muscle Sensor V3 design) | Amplifies and filters the muscle signal and outputs a smooth voltage that rises with effort. Needs a ±9 V dual supply. |
 | ECG electrode pads (3: two on the muscle, one reference) | Disposable stick-on gel pads that pick up the signal through the skin ([why ECG pads?](#a-note-on-the-electrodes)) |
 | 2 × 9 V batteries in series | Dual ±9 V power supply for the sensor board ([why?](#challenges-and-what-i-learned)) |
 | Multimeter | Checking the supply voltages |
