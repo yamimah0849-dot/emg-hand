@@ -46,7 +46,9 @@ forearm muscle ─► ECG electrode pads ─► EMG sensor board ─► Arduino 
 | 2 × 9 V batteries in series | Dual ±9 V power supply for the sensor board ([why?](#challenges-and-what-i-learned)) |
 | Multimeter | Checking the supply voltages |
 | Laptop with Chrome or Edge | Runs the virtual hand app. Chrome and Edge can read USB serial ports; Firefox and Safari can't. |
-| ✏️ PASTE HERE: anything else (jumper wires, 9 V battery clips, breadboard…) | |
+| Breadboard, jumper wires, 9 V battery clips | Connecting everything without soldering |
+| 3-lead snap electrode cable | Connects the pads to the sensor board's 3.5 mm socket |
+| USB cable | Power for the Arduino and the data link to the laptop |
 
 ### Wiring
 
@@ -69,7 +71,7 @@ forearm muscle ─► ECG electrode pads ─► EMG sensor board ─► Arduino 
 
 1. **Power first.** I built a dual supply from two 9 V batteries in series (how and why are under [Challenges](#challenges-and-what-i-learned)) and checked it with a multimeter before connecting anything else.
 2. **Sensor to Arduino.** The sensor's output goes to A0, and the battery midpoint goes to both the sensor's GND and the Arduino's GND. The Arduino measures voltages relative to its own ground, so both boards need to share the same 0 V point.
-3. **Electrodes.** ✏️ PASTE HERE: where you placed the pads (for example "two along the inner forearm a few centimetres below the elbow, reference on the bony part of the elbow") and how you prepared the skin.
+3. **Electrodes.** Two pads go on my forearm just below the elbow, over the muscles that close the hand (see the photo above). The reference pad goes on the back of my wrist, a bony spot with little muscle activity.
 4. **Arduino code** ([`arduino/emg_sender/emg_sender.ino`](arduino/emg_sender/emg_sender.ino)). The sketch is deliberately tiny: read A0, print the number, wait 10 ms, repeat. About 100 readings a second is enough for smooth motion and uses roughly 6,000 of the 9,600 bits per second the serial link can carry. Keeping the Arduino side simple means all the signal processing can be tuned in the app without re-uploading code.
 5. **Check the raw signal.** The Arduino IDE's Serial Plotter graphs the numbers live. It's the quickest way to see whether the sensor is working before the app gets involved.
 6. **Virtual hand app** ([`index.html`](index.html) and [`js/`](js)). It runs in Chrome or Edge, uses the Web Serial API to read the Arduino directly over USB, and draws the 3D hand with [three.js](https://threejs.org/).
@@ -80,7 +82,7 @@ forearm muscle ─► ECG electrode pads ─► EMG sensor board ─► Arduino 
 
    The app was built with the help of Claude, an AI coding assistant (see [Credits](#credits)).
 
-   > ✏️ **PASTE HERE:** your part in the app, in your own words (for example what you asked it to do, what you tested with your own hardware, and what you changed or tuned).
+   My part: I described what I wanted the app to do, tested it with my own sensor and arm, reported the problems I found so they could be fixed, and tuned the settings (smoothing, dead-zone, gain and calibration) to suit my signal.
 
 ### Run it yourself
 
@@ -96,13 +98,13 @@ With the hardware: upload the sketch, close the Arduino IDE's Serial Monitor/Plo
 
 ### The problem: no signal
 
-After wiring everything up, the Serial Plotter showed no usable signal. ✏️ PASTE HERE: what you actually saw (for example "a flat line near 0 that didn't change when I clenched"). ✏️ PASTE HERE: how the sensor board was powered at that point.
+After wiring everything up, the Serial Plotter showed a flat line near 0 that didn't change at all when I clenched. At that point the sensor board was powered from a single 3 V battery: far below the ±9 V it is designed for, and with no negative rail at all.
 
 ### Working out why
 
 The amplifiers on this type of sensor board need a **dual supply**: a positive rail, a negative rail, and a 0 V ground in between. The raw muscle signal swings both above and below 0 V, and the amplifiers need room on both sides to follow it. Without the negative rail, the board can't produce a usable output.
 
-✏️ PASTE HERE: how you figured this out (datasheet, a forum post, a teacher, trial and error…).
+I described the symptom to an AI assistant, which pointed out that this type of board needs a dual supply. The board's own pin labels, **+Vs** and **−Vs**, confirm it: it expects both a positive and a negative rail.
 
 ### The fix: a dual supply from two 9 V batteries
 
@@ -118,16 +120,14 @@ Battery B (−) ─────────────────►  −9 V  
 
 ### Verifying it, in two steps
 
-1. **Multimeter, before connecting the board.** With the black probe on the midpoint (ground), I measured each rail with the red probe: ✏️ PASTE HERE: your readings (for example "+9.4 V and −9.3 V"). A minus sign on the negative rail confirms the batteries are connected the right way round.
-2. **Serial Plotter, with everything connected.** The live trace now stayed low and steady at rest and rose clearly each time I clenched: ✏️ PASTE HERE: rough numbers (for example "about 40 at rest, 400–600 when clenching"). That clear gap between rest and clench is exactly what the app's calibration relies on.
+1. **Multimeter, before connecting the board.** With the black probe on the midpoint (ground), I measured each rail with the red probe: **+9.53 V** and **−9.34 V**. A minus sign on the negative rail confirms the batteries are connected the right way round.
+2. **Serial Plotter, with everything connected.** The live trace now stayed low and steady at rest, around **30–45**, and jumped to around **1000** each time I clenched my fist. That clear gap between rest and clench is exactly what the app's calibration relies on.
 
 ### What I learned
 
 - **Check the power before blaming the circuit.** The sensor could be wired correctly and still output nothing if it isn't powered the way it needs.
 - **Measure, don't assume.** A multimeter takes seconds and turns "I think it's wired right" into numbers.
 - **Test one stage at a time.** Checking the supply voltages, then the raw signal, then the app made it clear which stage a problem was in.
-- ✏️ PASTE HERE: anything else you learned, in your own words.
-
 ## A note on the electrodes
 
 I used **ECG electrodes**, the stick-on pads used for heart monitoring, rather than dedicated EMG electrodes. They're the same basic kind of sensor (a disposable pad with conductive gel), they pick up muscle signals through the skin well enough for this project, and they're cheap and easy to buy.
@@ -140,6 +140,7 @@ The trade-offs:
 
 ## Future improvements
 
+- **Turn down the sensor's gain.** A full clench reads about 1000 out of the Arduino's maximum of 1023, so strong clenches sit right at the top of what the input can measure, and anything stronger gets cut off. This board's output can also rise above the 5 V the Arduino's input is rated for, because it runs from ±9 V. Turning down the board's gain trimmer until a full clench reads around 700–800 would keep the signal in range and protect the Arduino.
 - **More channels, more gestures.** Add 2–4 sensors over different forearm muscles (for example the ones that open the hand as well as the ones that close it) and train a simple classifier, so it can tell a fist, a pinch and a point apart.
 - **Go wireless.** Stream the readings over Bluetooth or Wi-Fi (for example from a board like the ESP32, which has both built in) instead of a USB cable.
 - **A better power supply.** 9 V batteries run down fairly quickly, and their voltage drops as they drain. A rechargeable, regulated ±V supply would be steadier and cheaper over time.
