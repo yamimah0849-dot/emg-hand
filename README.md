@@ -103,7 +103,7 @@ With the hardware: upload the sketch, close the Arduino IDE's Serial Monitor/Plo
 
 ### The problem: no signal
 
-After wiring everything up, the Serial Plotter showed a flat line near 0 that didn't change at all when I clenched. At that point the sensor board was powered from a single 3 V battery: far below the ±9 V it is designed for, and with no negative rail at all.
+After wiring everything up, the Serial Plotter showed a flat line near 0 that didn't change at all when I clenched. I had started on an ESP32 and switched to an Arduino Uno, rechecking every connection along the way, but the line stayed flat. At that point the sensor board was powered from a single 3 V battery: far below the ±9 V it is designed for, and with no negative rail at all.
 
 ### Working out why
 
