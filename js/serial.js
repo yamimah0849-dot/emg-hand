@@ -1,4 +1,7 @@
 // Web Serial wrapper: port picking, line parsing, and friendly error messages.
+// Each line from the Arduino becomes an array of numbers:
+//   "512"          -> [512]            (Mark I sketch: one sensor)
+//   "38,612,188"   -> [38, 612, 188]   (Mark II sketch: three sensors)
 
 const KNOWN_BOARDS = {
   0x2341: 'Arduino', 0x2a03: 'Arduino', 0x1a86: 'CH340 (Arduino clone)',
@@ -17,10 +20,11 @@ const hex = n => (n ?? 0).toString(16).padStart(4, '0');
 export const serialSupported = () => 'serial' in navigator;
 
 export class SerialLink {
-  constructor({ onValue, onStatus }) {
-    this.onValue = onValue;       // (number) => void
+  constructor({ onValues, onStatus }) {
+    this.onValues = onValues;     // (number[]) => void, one call per line
     this.onStatus = onStatus;     // ({state, message}) => void   state: idle|connecting|connected|nodata|error
     this.port = null;
+    this.baudRate = 9600;
     this.reader = null;
     this.keepReading = false;
     this.lastDataAt = 0;
@@ -65,6 +69,7 @@ export class SerialLink {
   async connect(port, baudRate = 9600) {
     await this.disconnect();
     this.port = port;
+    this.baudRate = baudRate;
     this._status('connecting', 'Opening port…');
     try {
       await port.open({ baudRate });
@@ -83,7 +88,7 @@ export class SerialLink {
     this._watchdog = setInterval(() => {
       const silent = performance.now() - this.lastDataAt;
       if (this.port && silent > 3000) {
-        this._status('nodata', 'Connected, but no numbers are arriving. Check the baud rate matches your sketch (9600) and that it prints one value per line.');
+        this._status('nodata', `Connected, but no numbers are arriving. Check the baud rate (${this.baudRate}) matches Serial.begin() in your sketch: 9600 for the Mark I sketch, 115200 for Mark II.`);
       }
     }, 1000);
     return true;
@@ -92,6 +97,7 @@ export class SerialLink {
   async _readLoop() {
     let buffer = '';
     let gotData = false;
+    let firstLine = true;  // the first line after opening the port may be cut off halfway
     while (this.port?.readable && this.keepReading) {
       const decoder = new TextDecoderStream();
       const closed = this.port.readable.pipeTo(decoder.writable).catch(() => {});
@@ -105,14 +111,13 @@ export class SerialLink {
           while ((nl = buffer.search(/[\r\n]/)) >= 0) {
             const line = buffer.slice(0, nl);
             buffer = buffer.slice(nl + 1);
-            const m = line.match(/-?\d+(?:\.\d+)?/);  // tolerate "EMG: 512" style lines
-            if (!m) continue;
-            const v = parseFloat(m[0]);
-            if (!Number.isFinite(v)) continue;
+            const values = parseLine(line);
+            if (!values) continue;
+            if (firstLine) { firstLine = false; continue; }
             this.lastDataAt = performance.now();
             if (!gotData) { gotData = true; this._status('connected', 'Receiving data.'); }
             else if (this._lastState === 'nodata') this._status('connected', 'Receiving data.');
-            this.onValue(v);
+            this.onValues(values);
           }
           if (buffer.length > 4096) buffer = '';  // garbage guard (wrong baud rate)
         }
@@ -154,4 +159,21 @@ export class SerialLink {
   }
 
   get connected() { return !!this.port; }
+}
+
+// "38,612,188" -> [38, 612, 188]. Fields can be separated by commas, semicolons or tabs, and may
+// carry a label ("EMG: 512", "A1=300"): the last number in each field is used. Returns null for
+// lines that aren't data (empty lines, text, a field with no number in it).
+export function parseLine(line) {
+  const fields = line.split(/[,;\t]/).map(f => f.trim()).filter(Boolean);
+  if (!fields.length) return null;
+  const values = [];
+  for (const f of fields) {
+    const nums = f.match(/-?\d+(?:\.\d+)?/g);
+    if (!nums) return null;
+    const v = parseFloat(nums[nums.length - 1]);
+    if (!Number.isFinite(v)) return null;
+    values.push(v);
+  }
+  return values;
 }

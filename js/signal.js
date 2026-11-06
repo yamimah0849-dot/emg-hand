@@ -1,9 +1,11 @@
 // EMG signal pipeline: raw sample -> (optional rectification) -> EMA smoothing -> calibrated 0..1 grip level.
+// Mark I uses one SignalProcessor. Mark II uses three (one per sensor), each with its own calibration.
 
 const STORAGE_KEY = 'emghand.calibration.v1';
 
 export class SignalProcessor {
-  constructor() {
+  constructor({ storageKey = STORAGE_KEY } = {}) {
+    this.storageKey = storageKey;
     this.settings = {
       mode: 'envelope',   // 'envelope': value rises with effort; 'raw': AC signal, use amplitude around baseline
       smoothingMs: 120,   // EMA time constant
@@ -19,7 +21,7 @@ export class SignalProcessor {
     this._count = 0;
     this._rateT0 = performance.now();
     this._initialised = false;
-    this.calibration = loadCalibration();
+    this.calibration = loadCalibration(storageKey);
     this.listeners = new Set();
   }
 
@@ -73,13 +75,19 @@ export class SignalProcessor {
 
   setCalibration(cal) {
     this.calibration = cal;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cal)); } catch {}
+    try { localStorage.setItem(this.storageKey, JSON.stringify(cal)); } catch {}
+  }
+
+  // Switch to another saved calibration slot (Mark II keeps demo-mode calibrations separate).
+  setStorageKey(key) {
+    this.storageKey = key;
+    this.calibration = loadCalibration(key);
   }
 }
 
-function loadCalibration() {
+function loadCalibration(key) {
   try {
-    const c = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    const c = JSON.parse(localStorage.getItem(key));
     if (c && Number.isFinite(c.rest) && Number.isFinite(c.max) && c.max > c.rest) return c;
   } catch {}
   return null;
@@ -153,4 +161,127 @@ export class Calibrator {
     }
     return { rest: restLevel, max: maxLevel, noise, mode: this.p.settings.mode, date: new Date().toISOString() };
   }
+}
+
+
+// ---------------------------------------------------------------------------------------------
+// Mark II calibration: one relaxed recording for all sensors, then one flex per finger group.
+// While a group flexes, the other sensors are recorded too. How far they rise (as a fraction of
+// their own rest-to-max range) is the crosstalk, which is used to suggest a threshold per sensor.
+
+const quantile = (arr, f) => {
+  const s = [...arr].sort((a, b) => a - b);
+  return s[Math.min(s.length - 1, Math.floor(f * (s.length - 1)))];
+};
+const stdDev = arr => {
+  const mean = arr.reduce((s, v) => s + v, 0) / arr.length;
+  return Math.sqrt(arr.reduce((s, v) => s + (v - mean) ** 2, 0) / arr.length);
+};
+
+export class MultiCalibrator {
+  constructor(processors, { restMs = 3000, flexMs = 3000, prepMs = 1500 } = {}) {
+    this.procs = processors;
+    this.restMs = restMs; this.flexMs = flexMs; this.prepMs = prepMs;
+    this.active = false;
+  }
+
+  // sensors: which sensors to calibrate, e.g. [0, 1, 2] for all or [1] to redo sensor 2 only.
+  // onUpdate({ phase, sensor, step, steps, progress, secondsLeft })
+  // Resolves with { calibrations, errors, crosstalk }:
+  //   calibrations[k]  new calibration for sensor k, or null if it failed / wasn't run
+  //   errors[k]        message for a sensor that failed
+  //   crosstalk[j][k]  how far sensor j rose (0..1 of its range) while group k flexed; NaN = not measured
+  run(onUpdate, { sensors = this.procs.map((_, i) => i) } = {}) {
+    if (this.active) return Promise.reject(new Error('Calibration already running'));
+    this.active = true;
+    const n = this.procs.length;
+    const phases = [{ name: 'prep-rest', ms: this.prepMs }, { name: 'rest', ms: this.restMs }];
+    for (const k of sensors) {
+      phases.push({ name: 'prep-flex', sensor: k, ms: this.prepMs }, { name: 'flex', sensor: k, ms: this.flexMs });
+    }
+    const steps = 1 + sensors.length;
+    const blank = () => this.procs.map(() => []);
+    const samples = { rest: blank(), flex: {} };
+    for (const k of sensors) samples.flex[k] = blank();
+
+    let phaseIdx = 0;
+    let phaseStart = performance.now();
+    const offs = this.procs.map((p, j) => p.onSample(() => {
+      const ph = phases[phaseIdx];
+      if (ph?.name === 'rest') samples.rest[j].push(p.smoothed);
+      else if (ph?.name === 'flex') samples.flex[ph.sensor][j].push(p.smoothed);
+    }));
+
+    return new Promise((resolve, reject) => {
+      const cleanup = () => { offs.forEach(off => off()); clearInterval(timer); this.active = false; this._cancel = null; };
+      this._cancel = () => { cleanup(); reject(new Error('cancelled')); };
+      const timer = setInterval(() => {
+        const now = performance.now();
+        let ph = phases[phaseIdx];
+        if (now - phaseStart >= ph.ms) {
+          if (ph.name === 'rest' && samples.rest.some(a => a.length < 5)) {
+            cleanup(); reject(new Error('No data received during calibration. Is the Arduino sending three values per line?')); return;
+          }
+          phaseIdx++; phaseStart = now;
+          if (phaseIdx >= phases.length) {
+            cleanup();
+            resolve(this._compute(samples, sensors, n));
+            return;
+          }
+          ph = phases[phaseIdx];
+        }
+        const elapsed = now - phaseStart;
+        const step = ph.name.endsWith('rest') ? 1 : 2 + sensors.indexOf(ph.sensor);
+        onUpdate?.({
+          phase: ph.name, sensor: ph.sensor, step, steps,
+          progress: elapsed / ph.ms, secondsLeft: Math.ceil((ph.ms - elapsed) / 1000),
+        });
+      }, 50);
+    });
+  }
+
+  cancel() { this._cancel?.(); }
+
+  _compute(samples, sensors, n) {
+    const calibrations = Array(n).fill(null);
+    const errors = Array(n).fill(null);
+    const mode = this.procs[0].settings.mode;
+    for (const k of sensors) {
+      const rest = samples.rest[k], flex = samples.flex[k][k];
+      if (flex.length < 5) { errors[k] = `Sensor ${k + 1}: no data received while flexing.`; continue; }
+      const restLevel = quantile(rest, 0.5);
+      const noise = stdDev(rest);
+      const maxLevel = quantile(flex, 0.85);  // the flex you can actually hold, ignoring brief spikes
+      if (maxLevel - restLevel <= Math.max(3 * noise, 2)) {
+        errors[k] = `Sensor ${k + 1} didn't react clearly (rest ≈ ${restLevel.toFixed(0)}, flex ≈ ${maxLevel.toFixed(0)}). ` +
+          `Check its pads, then press Redo next to sensor ${k + 1}.`;
+        continue;
+      }
+      calibrations[k] = { rest: restLevel, max: maxLevel, noise, mode, date: new Date().toISOString() };
+    }
+
+    // Crosstalk: while group k flexed, how high did sensor j go, as a fraction of j's own range?
+    const crosstalk = Array.from({ length: n }, () => Array(n).fill(NaN));
+    for (const k of sensors) {
+      for (let j = 0; j < n; j++) {
+        if (j === k) continue;
+        const cal = calibrations[j] ?? this.procs[j].calibration;
+        const vals = samples.flex[k][j];
+        if (!cal || vals.length < 5) continue;
+        const range = Math.max(cal.max - cal.rest, 1e-6);
+        crosstalk[j][k] = Math.min(1, Math.max(0, (quantile(vals, 0.85) - cal.rest) / range));
+      }
+    }
+    return { calibrations, errors, crosstalk };
+  }
+}
+
+// Threshold suggestion for each sensor: just above the most crosstalk it picked up from any other
+// finger group, so other groups' movements stay below it. Returns NaN where nothing was measured.
+export function suggestThresholds(crosstalk, { margin = 0.05, min = 0.05, max = 0.6 } = {}) {
+  return crosstalk.map(row => {
+    const seen = row.filter(Number.isFinite);
+    if (!seen.length) return NaN;
+    return Math.min(max, Math.max(min, Math.max(...seen) + margin));
+  });
 }

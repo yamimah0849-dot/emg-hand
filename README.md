@@ -2,9 +2,11 @@
 
 **A sensor on my forearm reads how hard I'm squeezing, and a 3D hand on screen opens and closes to match, in real time.**
 
-> **Status: working proof of concept.** It uses one EMG channel, so it tracks one movement (open hand ↔ closed fist) and how strongly I'm making it. It can't yet tell individual fingers or different gestures apart. See [Future improvements](#future-improvements).
+> **Two versions live in this repository.**
+> - **Mark I** (finished): one EMG channel, so it tracks one movement (open hand ↔ closed fist) and how strongly I'm making it. Most of this README describes it, starting at [How it works](#how-it-works).
+> - **Mark II, "Demon's Dark Hand"**: three sensors, one per finger group, so the thumb, the index + middle fingers and the ring + pinky fingers move separately. See [Mark II](#mark-ii-demons-dark-hand). The app runs both: pick one under **Sensor setup**.
 
-**Try it:** [live demo in your browser](https://yamimah0849-dot.github.io/emg-hand/) (Chrome or Edge; no sensor needed, just tick **Demo mode** and hold **Space**) · [demo video](https://youtube.com/shorts/HJ0MSKtzvS0)
+**Try it:** [live demo in your browser](https://yamimah0849-dot.github.io/emg-hand/) (Chrome or Edge; no sensor needed, just tick **Demo mode** and hold **Space**; in Mark II, keys **1**, **2** and **3** flex each finger group) · [demo video](https://youtube.com/shorts/HJ0MSKtzvS0)
 
 ## My role
 
@@ -25,7 +27,113 @@
 ![My forearm with two ECG electrode pads attached, connected by red and yellow snap leads, with a multimeter on the desk behind](images/electrodes-on-forearm.jpg)
 *ECG electrode pads on my forearm, clipped to the sensor's lead cable. In the background is the multimeter I used to check the supply voltages.*
 
+## Mark II: Demon's Dark Hand
+
+Mark II adds two more sensors so each finger group gets its own channel:
+
+| Sensor | Arduino pin | Moves |
+|---|---|---|
+| Sensor 1 | A0 | Thumb |
+| Sensor 2 | A1 | Index + middle fingers |
+| Sensor 3 | A2 | Ring + pinky fingers |
+
+What's new in the app:
+
+- **Finger groups:** each sensor drives its own fingers, smoothly and in proportion to how hard that muscle works (half the effort gives a half-bent finger).
+- **Live signal view** (the **Signals** tab, or press **V**): three labelled lanes, one per sensor, each with a scrolling graph, the live number and an activity bar. The lane that's moving the hand lights up, so you can see at a glance which sensor reacts to which finger. It replaces the Arduino IDE's Serial Plotter.
+- **Per-sensor calibration:** records each sensor's resting level and its maximum flex, and saves them in the browser, so you only redo it when you move the pads.
+- **Crosstalk filter:** forearm muscles sit close together, so each sensor also picks up a bit of its neighbours (that's called crosstalk). Each sensor has a threshold slider: its fingers only move once it rises above the threshold. Calibration measures the crosstalk and suggests a threshold for each sensor.
+- **Demon look:** dark charcoal skin, sharp claws, and red veins that glow brighter the harder you flex (only on the fingers you're flexing). A switch under **Appearance** brings back the normal hand.
+
+### Mark II wiring
+
+The signal side is the same idea as Mark I, three times over. Every sensor's signal goes to its own analog pin, and every sensor shares the Arduino's ground.
+
+| From | To |
+|---|---|
+| Sensor 1 **SIG** | Arduino **A0** |
+| Sensor 2 **SIG** | Arduino **A1** |
+| Sensor 3 **SIG** | Arduino **A2** |
+| Every sensor's **GND** (beside SIG) | Arduino **GND** (one shared ground, e.g. a ground row on the breadboard) |
+| Each sensor's electrode cable | That sensor's 3.5 mm socket |
+
+**Power:** power each sensor board the way [Mark I's wiring](#wiring) does. If all three are the same red ±9 V boards, they can share one battery pair: connect every board's **+Vs** to battery A **+**, every board's **−Vs** to battery B **−**, and every board's **GND** (beside +Vs and −Vs) to the batteries' midpoint. Three boards drain the batteries faster than one, so if the signals get weak, check the voltages with the multimeter.
+
+```
+                         ┌──────────────────────────┐
+Sensor 1 SIG ───────────►│ A0                       │
+Sensor 2 SIG ───────────►│ A1      Arduino Uno      │ USB ──► laptop
+Sensor 3 SIG ───────────►│ A2                       │
+All sensor GNDs ────────►│ GND                      │
+                         └──────────────────────────┘
+```
+
+> **Safety:** the same rule as Mark I applies. Everything touching your body runs from batteries, and the laptop runs on its own battery with the charger unplugged while the electrodes are on.
+
+### Where to put the electrodes
+
+Each sensor needs its own three pads: two over the muscle, plus one reference pad on a bony spot with little muscle (the back of the wrist or the bony point of the elbow). The muscles that bend your fingers are on the palm side of the forearm. Good starting spots:
+
+- **Sensor 1 (thumb):** on the thumb side of the inner forearm, about halfway between elbow and wrist.
+- **Sensor 2 (index + middle):** in the middle of the inner forearm, about a third of the way down from the elbow.
+- **Sensor 3 (ring + pinky):** on the pinky side of the inner forearm, about a third of the way down from the elbow.
+
+Put each sensor's two muscle pads close together, one above the other along the arm, and keep the three sensors' pads as far from each other as the space allows. Then use the app's **Signals** view to move them until each sensor reacts most to its own fingers. They won't be perfectly separate, and that's what the crosstalk filter is for.
+
+### Step by step: from zero to a moving hand
+
+**1. Install the Arduino IDE** (once). Download it from [arduino.cc/en/software](https://www.arduino.cc/en/software) and install it.
+
+**2. Get this project onto your computer.** On the GitHub page, click the green **Code** button → **Download ZIP**, then unzip it. (If Mark II hasn't been merged into `main` yet, first switch GitHub's branch menu from `main` to `mark-ii`.)
+
+**3. Upload the Mark II sketch to the Arduino.**
+1. Plug the Arduino into the laptop with the USB cable.
+2. In the Arduino IDE, choose **File → Open** and open `arduino/emg_sender_v2/emg_sender_v2.ino` from the unzipped folder.
+3. Choose **Tools → Board → Arduino AVR Boards → Arduino Uno**.
+4. Choose **Tools → Port** and pick the port marked *Arduino Uno* (on Windows it's called something like *COM3*). If you don't see it, try another USB cable: some can only charge.
+5. Click the round **Upload** button with the right-pointing arrow (→) at the top left. Wait until the bottom of the window says **Done uploading**.
+6. Optional check: open **Tools → Serial Monitor**, set the speed in its corner to **115200 baud**, and you should see lines of three numbers like `38,41,35` scrolling past. Flex a finger and one of them should jump up.
+7. **Close the Serial Monitor and Serial Plotter** (or the whole IDE). Only one program can use the Arduino's port at a time, and the app needs it.
+
+**4. Start the app.** On Windows, double-click **`Start EMG Hand.bat`** in the unzipped folder. It opens the app in Edge or Chrome (other browsers can't talk to USB serial ports). Keep the small black console window open while you use it.
+
+**5. Connect.**
+1. Under **Sensor setup**, choose **Mark II: 3 sensors**. The **Baud rate** switches to **115200**, which matches the sketch.
+2. Click **Connect**, pick your Arduino in the list that pops up, and click *Connect* there.
+3. The status at the top right turns green: **Connected**.
+
+**6. Check the sensors in the Signals view.** Click the **Signals** tab (or press **V**). Move one finger group at a time: bend your thumb, then curl your index and middle fingers, then your ring and pinky. The matching lane should rise the most and light up. If the wrong lane reacts, or none does, move that sensor's pads (and see the troubleshooting table below).
+
+**7. Calibrate.** Press **Calibrate all sensors** (or **C**) and follow the card on screen. It takes about 20 seconds:
+1. Relax your arm for 3 seconds (records every sensor's resting level).
+2. Bend your thumb firmly into your palm and hold for 3 seconds (sensor 1's maximum).
+3. Curl your index and middle fingers and hold (sensor 2's maximum).
+4. Curl your ring and pinky fingers and hold (sensor 3's maximum).
+
+The calibration is saved. Next time, just click **Connect** and go. If you move one sensor's pads, press **Redo** next to just that sensor.
+
+**8. Reduce crosstalk.** After calibrating, the **Crosstalk filter** section shows how much each sensor picked up from the other fingers and suggests a threshold. Press **Use suggested thresholds**, then try moving each finger group. If a group still twitches when you move other fingers, drag its slider up a little. If it feels hard to move, drag it down.
+
+**9. Play.** Switch back to the **3D hand** tab. Flex and watch the demon hand follow, veins glowing. To get the normal hand back, turn off **Demon hand** under **Appearance** (or click one of the skin colours).
+
+**Using the Mark I hardware again:** upload `arduino/emg_sender/emg_sender.ino` instead, and choose **Mark I: 1 sensor** under *Sensor setup* (the baud rate switches to 9600). Everything works as before.
+
+### Mark II troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| "No numbers are arriving" | The baud rate must be **115200** for the Mark II sketch. Check that the sketch actually uploaded (step 3). |
+| The app says the Arduino is sending **one** value per line | The Arduino still has the Mark I sketch on it. Upload `emg_sender_v2` (step 3). |
+| One lane stays flat | Check that sensor's SIG wire goes to the right pin, its GND goes to the Arduino's GND, its power wires are connected, and its pads are stuck down firmly. |
+| All three lanes rise together whatever you move | The pads are too close together or over the same muscle. Spread them out (see *Where to put the electrodes*), recalibrate, then use the suggested thresholds. |
+| A lane jumps around while you're relaxed | A pad is loose or its gel has dried. Use fresh pads, then press **Redo** for that sensor. |
+| A full flex reads 1023 and goes flat at the top | That sensor's gain is too high: turn its board's gain trimmer down a little (see [Future improvements](#future-improvements)). |
+
+The [software guide](docs/software-guide.md) explains every setting in more detail.
+
 ## How it works
+
+*This section and the ones after it describe Mark I, the original one-sensor build. Mark II works the same way, with three channels instead of one.*
 
 When a muscle contracts, its fibres produce tiny electrical voltages, a few thousandths of a volt, that can be picked up through the skin. This is called **EMG (electromyography)**. The harder you squeeze, the more fibres fire and the bigger the signal gets.
 
@@ -97,7 +205,7 @@ You can try it **without any hardware**: open the **[live demo](https://yamimah0
 
 To run it from your own copy on Windows, download this repository (green **Code** button → **Download ZIP**), unzip it, and double-click **`Start EMG Hand.bat`**. It starts a small local web server and opens the app in Edge or Chrome. Either way, an internet connection is needed to load the 3D libraries.
 
-With the hardware: upload the sketch, close the Arduino IDE's Serial Monitor/Plotter (only one program can use the port at a time), click **Connect** in the app, and follow the on-screen calibration. Settings and troubleshooting are in the [software guide](docs/software-guide.md).
+With the hardware: upload the sketch, close the Arduino IDE's Serial Monitor/Plotter (only one program can use the port at a time), choose **Mark I** under *Sensor setup*, click **Connect** in the app, and follow the on-screen calibration. Settings and troubleshooting are in the [software guide](docs/software-guide.md). For the three-sensor version, follow the [Mark II step-by-step guide](#step-by-step-from-zero-to-a-moving-hand).
 
 ## Challenges and what I learned
 
@@ -145,7 +253,7 @@ The trade-offs:
 ## Future improvements
 
 - **Turn down the sensor's gain.** A full clench reads around 1000 and can hit the Arduino's maximum of 1023, so strong clenches sit right at the top of what the input can measure, and anything stronger gets cut off. This board's output can also rise above the 5 V the Arduino's input is rated for, because it runs from ±9 V. Turning down the board's gain trimmer until a full clench reads around 700–800 would keep the signal in range and protect the Arduino.
-- **More channels, more gestures.** Add 2–4 sensors over different forearm muscles (for example the ones that open the hand as well as the ones that close it) and train a simple classifier, so it can tell a fist, a pinch and a point apart.
+- **More channels, more gestures.** Mark II takes the first step, with three sensors that each drive a finger group. Next: add sensors over the muscles that open the hand as well as the ones that close it, and train a simple classifier, so it can tell a fist, a pinch and a point apart.
 - **Go wireless.** Stream the readings over Bluetooth or Wi-Fi (for example from a board like the ESP32, which has both built in) instead of a USB cable.
 - **A better power supply.** 9 V batteries run down fairly quickly, and their voltage drops as they drain. A rechargeable, regulated ±V supply would be steadier and cheaper over time.
 - **Faster sampling.** 100 readings per second is fine for the smoothed signal, but analysing the raw EMG waveform (for example its frequency content, which shifts as a muscle tires) would need about 1,000 or more per second and a faster serial link.
@@ -154,8 +262,9 @@ The trade-offs:
 
 ## Credits
 
-- Hardware, wiring and Arduino code: me.
+- Mark I hardware, wiring and Arduino code: me.
 - Browser app (`index.html`, `style.css`, `js/`, and the helper scripts): built with Claude, an AI coding assistant made by Anthropic.
+- Mark II hardware: me. Mark II Arduino sketch (`arduino/emg_sender_v2/`) and the Mark II app features (three-sensor input, live signal view, per-sensor calibration, crosstalk filter, demon look): written by Claude to my specification.
 - 3D hand model: the WebXR "generic hand" from the open-source [webxr-input-profiles](https://github.com/immersive-web/webxr-input-profiles) project (MIT license).
 - 3D rendering: [three.js](https://threejs.org/) (MIT license).
 

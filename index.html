@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EMG Hand</title>
+<title>Demon's Dark Hand Mk II</title>
 <link rel="stylesheet" href="style.css">
 <script>
   // Use the offline copy of three.js if download-assets.ps1 has been run, otherwise the CDN.
@@ -25,14 +25,46 @@
   })();
 </script>
 </head>
-<body>
+<body data-rig="mk2" data-demon="true">
 <main id="viewport">
+  <div id="aura"></div>
   <div id="loading" class="overlay-msg">Loading hand model…</div>
 
-  <div id="grip-hud">
+  <div id="view-tabs" role="tablist" aria-label="View">
+    <button role="tab" id="tab-hand" aria-selected="true">3D hand</button>
+    <button role="tab" id="tab-signals" aria-selected="false">Signals <kbd>V</kbd></button>
+  </div>
+
+  <div id="grip-hud" class="mk1-only">
     <div class="hud-label">Grip</div>
     <div class="hud-value"><span id="hud-pct">0</span><small>%</small></div>
   </div>
+  <div id="group-hud" class="mk2-only"></div>
+
+  <section id="signal-view" hidden aria-label="Live signals">
+    <div class="sv-top">
+      <div>
+        <h2>Live signals</h2>
+        <p class="sv-sub mk2-only">Move one finger group at a time and watch which lane lights up. Each sensor should react most to its own fingers.</p>
+        <p class="sv-sub mk1-only">Clench and relax: the line should jump up when you clench and fall back when you relax.</p>
+      </div>
+      <div class="sv-tools">
+        <div class="seg" role="group" aria-label="Vertical scale">
+          <button id="sv-full" aria-pressed="true" title="Every sensor on the same 0–1023 scale">0–1023</button>
+          <button id="sv-auto" aria-pressed="false" title="Zoom in to fit each sensor's signal">Auto zoom</button>
+        </div>
+        <button id="sv-pause" class="ghost" aria-pressed="false">Pause</button>
+        <span class="sv-rate">Rate <b id="sv-rate">–</b></span>
+      </div>
+    </div>
+    <div class="sv-legend">
+      <span><i class="ln thin"></i>raw reading</span>
+      <span><i class="ln thick"></i>smoothed</span>
+      <span><i class="ln dash"></i>rest · max · threshold</span>
+      <span><i class="meter-key"></i>activity (right): bright = above threshold, moving the hand</span>
+    </div>
+    <div class="sv-lanes"></div>
+  </section>
 
   <div id="calib" hidden>
     <div class="calib-card">
@@ -43,6 +75,7 @@
         <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="track"/><circle cx="60" cy="60" r="52" class="bar" id="calib-bar"/></svg>
         <span id="calib-count">3</span>
       </div>
+      <div id="calib-live" class="mk2-only" aria-hidden="true"></div>
       <div class="calib-actions">
         <button id="calib-cancel" class="ghost">Cancel</button>
         <button id="calib-skip" class="ghost" hidden>Use last calibration</button>
@@ -55,12 +88,18 @@
 
 <aside id="panel">
   <header>
-    <div class="brand"><span class="logo"></span>EMG Hand</div>
+    <div class="brand"><span class="logo"></span><span>Demon's Dark Hand <span class="mark">Mk II</span></span></div>
     <div id="status" class="status idle"><span class="dot"></span><span id="status-text">Not connected</span></div>
   </header>
 
   <section>
     <h3>Connection</h3>
+    <label class="field">Sensor setup
+      <select id="rig">
+        <option value="mk2">Mark II: 3 sensors (A0, A1, A2)</option>
+        <option value="mk1">Mark I: 1 sensor (A0)</option>
+      </select>
+    </label>
     <label class="field">Serial port
       <select id="port-select"></select>
     </label>
@@ -76,31 +115,54 @@
       <button id="disconnect" class="ghost" disabled>Disconnect</button>
     </div>
     <p id="message" class="message"></p>
-    <label class="toggle"><input type="checkbox" id="demo"> <span>Demo mode (no hardware) — hold <kbd>Space</kbd> to clench</span></label>
+    <label class="toggle"><input type="checkbox" id="demo"> <span class="mk1-only">Demo mode (no hardware) — hold <kbd>Space</kbd> to clench</span><span class="mk2-only">Demo mode (no hardware) — hold <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> to flex each finger group, <kbd>Space</kbd> for a fist</span></label>
+    <div id="demo-pads" class="mk2-only" hidden></div>
   </section>
 
   <section>
     <h3>Signal</h3>
-    <canvas id="chart"></canvas>
-    <div class="legend">
-      <span><i class="sw raw"></i>raw</span><span><i class="sw smooth"></i>smoothed</span><span><i class="sw cal"></i>rest / max</span>
+    <div class="mk1-only">
+      <canvas id="chart"></canvas>
+      <div class="legend">
+        <span><i class="sw raw"></i>raw</span><span><i class="sw smooth"></i>smoothed</span><span><i class="sw cal"></i>rest / max</span>
+      </div>
+      <div class="stats">
+        <div><small>Raw</small><b id="v-raw">–</b></div>
+        <div><small>Smoothed</small><b id="v-smooth">–</b></div>
+        <div><small>Rate</small><b id="v-rate">–</b></div>
+      </div>
+      <div class="gripbar"><div id="gripbar-fill"></div></div>
     </div>
-    <div class="stats">
-      <div><small>Raw</small><b id="v-raw">–</b></div>
-      <div><small>Smoothed</small><b id="v-smooth">–</b></div>
-      <div><small>Rate</small><b id="v-rate">–</b></div>
+    <div class="mk2-only">
+      <div id="mini-sensors"></div>
     </div>
-    <div class="gripbar"><div id="gripbar-fill"></div></div>
+    <button id="open-signals" class="secondary full">Open live signal view <kbd>V</kbd></button>
   </section>
 
   <section>
     <h3>Calibration</h3>
-    <div class="stats">
-      <div><small>Rest</small><b id="c-rest">–</b></div>
-      <div><small>Max clench</small><b id="c-max">–</b></div>
-      <div><small>Noise</small><b id="c-noise">–</b></div>
+    <div class="mk1-only">
+      <div class="stats">
+        <div><small>Rest</small><b id="c-rest">–</b></div>
+        <div><small>Max clench</small><b id="c-max">–</b></div>
+        <div><small>Noise</small><b id="c-noise">–</b></div>
+      </div>
     </div>
-    <button id="calibrate" class="secondary full">Recalibrate <kbd>C</kbd></button>
+    <div class="mk2-only">
+      <table class="cal-table">
+        <thead><tr><th>Sensor</th><th>Rest</th><th>Max</th><th>Noise</th><th><span class="sr-only">Redo</span></th></tr></thead>
+        <tbody id="cal-rows"></tbody>
+      </table>
+      <p id="cal-saved" class="help"></p>
+    </div>
+    <button id="calibrate" class="secondary full"><span class="mk1-only">Recalibrate</span><span class="mk2-only">Calibrate all sensors</span> <kbd>C</kbd></button>
+  </section>
+
+  <section class="mk2-only">
+    <h3>Crosstalk filter</h3>
+    <p class="help">Each sensor also picks up a little signal from the muscles next to it. A finger group only moves once its own sensor rises above its threshold, so raise a sensor's threshold if its fingers twitch when you move other fingers.</p>
+    <div id="thresholds"></div>
+    <button id="apply-suggest" class="secondary full" disabled>Use suggested thresholds</button>
   </section>
 
   <section>
@@ -109,7 +171,7 @@
       <input type="range" id="smooth" min="20" max="500" step="10" value="120"></label>
     <label class="slider">Responsiveness <output id="o-resp"></output>
       <input type="range" id="resp" min="3" max="20" step="0.5" value="9"></label>
-    <label class="slider">Dead-zone <output id="o-dz"></output>
+    <label class="slider mk1-only">Dead-zone <output id="o-dz"></output>
       <input type="range" id="dz" min="0" max="0.4" step="0.01" value="0.08"></label>
     <label class="slider">Gain <output id="o-gain"></output>
       <input type="range" id="gain" min="0.5" max="2" step="0.05" value="1"></label>
@@ -123,11 +185,13 @@
 
   <section>
     <h3>Appearance</h3>
+    <label class="switch"><input type="checkbox" id="demon" role="switch"> <span class="track"></span> <span>Demon hand: charcoal skin, claws and veins that glow as you flex</span></label>
     <div class="row">
       <label class="field grow">Hand
         <select id="side"><option value="right">Right</option><option value="left">Left</option></select>
       </label>
     </div>
+    <div class="field swatch-field">Normal skin <span class="help-inline">(picking one turns the demon look off)</span></div>
     <div class="swatches" id="swatches"></div>
   </section>
 </aside>
